@@ -218,13 +218,85 @@
   };
 
   /* ===========================================================
+   * 📋 내장 템플릿 3종
+   * - 교실에서 바로 쓸 수 있는 기본 주제
+   * - id는 저장 시 새로 발급, 템플릿 자체는 불변
+   * =========================================================== */
+  const templates = [
+    {
+      key: 'good-neighborhood',
+      title: '살기 좋은 동네',
+      size: 16,
+      description: '우리 동네에 꼭 필요한 건 무엇일까?',
+      items: [
+        { emoji: '🎢', text: '놀이공원' },
+        { emoji: '🌲', text: '숲' },
+        { emoji: '🛒', text: '마트' },
+        { emoji: '⚽', text: '운동장' },
+        { emoji: '🚌', text: '대중교통' },
+        { emoji: '🚲', text: '자전거' },
+        { emoji: '👫', text: '친구' },
+        { emoji: '📚', text: '도서관' },
+        { emoji: '☀️', text: '따뜻한 기후' },
+        { emoji: '🍂', text: '뚜렷한 사계절' },
+        { emoji: '🍜', text: '맛있는 먹거리' },
+        { emoji: '🥗', text: '건강한 식단' },
+        { emoji: '🏙️', text: '고층빌딩' },
+        { emoji: '🏡', text: '단독주택' },
+        { emoji: '🐶', text: '반려동물' },
+        { emoji: '🧼', text: '깨끗한 거리' },
+      ],
+    },
+    {
+      key: 'best-snack',
+      title: '우리 반 최고의 간식',
+      size: 16,
+      description: '쉬는 시간에 제일 먹고 싶은 간식은?',
+      items: [
+        { emoji: '🍡', text: '떡볶이' },
+        { emoji: '🍗', text: '치킨' },
+        { emoji: '🍕', text: '피자' },
+        { emoji: '🍔', text: '햄버거' },
+        { emoji: '🍜', text: '라면' },
+        { emoji: '🍙', text: '김밥' },
+        { emoji: '🍫', text: '초콜릿' },
+        { emoji: '🍦', text: '아이스크림' },
+        { emoji: '🍪', text: '과자' },
+        { emoji: '🍿', text: '팝콘' },
+        { emoji: '🍬', text: '사탕' },
+        { emoji: '🐻', text: '젤리' },
+        { emoji: '🍮', text: '푸딩' },
+        { emoji: '🍰', text: '케이크' },
+        { emoji: '🍩', text: '도넛' },
+        { emoji: '🌸', text: '마카롱' },
+      ],
+    },
+    {
+      key: 'class-rules',
+      title: '학급 규칙 우선순위',
+      size: 8,
+      description: '우리 반에서 가장 중요한 규칙은?',
+      items: [
+        { emoji: '⏰', text: '수업 시간 지키기' },
+        { emoji: '🤝', text: '친구 존중하기' },
+        { emoji: '📝', text: '숙제 열심히 하기' },
+        { emoji: '🧹', text: '정리정돈' },
+        { emoji: '👋', text: '인사 잘하기' },
+        { emoji: '🧼', text: '손 씻기' },
+        { emoji: '🚶', text: '복도 걸어 다니기' },
+        { emoji: '👂', text: '경청하기' },
+      ],
+    },
+  ];
+
+  /* ===========================================================
    * 🛣️ 해시 라우터
    * - #/ 홈 / #/create / #/play / #/result
    * - L1 Phase 1에서는 홈만 구현, 나머지는 "준비 중"
    * =========================================================== */
   const routes = {
     '/': renderHome,
-    '/create': renderPlaceholder('주제 생성', 'Phase 2에서 만나요!'),
+    '/create': renderCreate,
     '/play': renderPlaceholder('투표 화면', 'Phase 3에서 만나요!'),
     '/result': renderPlaceholder('결과 화면', 'Phase 4에서 만나요!'),
   };
@@ -355,7 +427,270 @@
   }
 
   /* ===========================================================
-   * 🧩 플레이스홀더 화면 (Phase 2~4에서 교체 예정)
+   * ✨ 주제 생성 화면 (#/create)
+   * - 탭 2종: 템플릿 / 커스텀
+   * - 상태는 DOM에 종속 (간단 MVP, 탭 전환 시 입력 유지 안 함)
+   * =========================================================== */
+  function renderCreate(root) {
+    // 현재 탭: 'template' | 'custom'
+    let currentTab = 'template';
+    // 커스텀 폼 임시 상태 (탭 재진입 시 보존)
+    const customState = { title: '', size: 16, items: Array(16).fill(null).map(() => ({ emoji: '', text: '' })) };
+
+    function renderShell() {
+      root.innerHTML = `
+        <header class="flex items-center gap-3 pt-4 pb-6">
+          <button id="btnBack" class="dd-btn-ghost px-3 py-2 text-sm" aria-label="뒤로">←</button>
+          <h1 class="text-xl sm:text-2xl font-black" style="color: var(--dd-text);">
+            새 토너먼트 만들기
+          </h1>
+        </header>
+
+        <!-- 탭 스위처 -->
+        <div class="flex gap-2 mb-5 p-1 rounded-2xl" style="background: var(--dd-border);">
+          <button data-tab="template" class="dd-tab flex-1 py-2 text-sm font-semibold rounded-xl">
+            📋 템플릿
+          </button>
+          <button data-tab="custom" class="dd-tab flex-1 py-2 text-sm font-semibold rounded-xl">
+            ✏️ 직접 만들기
+          </button>
+        </div>
+
+        <section id="tabContent"></section>
+      `;
+
+      root.querySelector('#btnBack').addEventListener('click', () => navigate('/'));
+      root.querySelectorAll('[data-tab]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          currentTab = btn.dataset.tab;
+          renderTabs();
+        });
+      });
+
+      renderTabs();
+    }
+
+    function renderTabs() {
+      // 탭 스타일 갱신
+      root.querySelectorAll('[data-tab]').forEach((btn) => {
+        const active = btn.dataset.tab === currentTab;
+        btn.style.background = active ? 'var(--dd-white)' : 'transparent';
+        btn.style.color = active ? 'var(--dd-coral-deep)' : 'var(--dd-text-sub)';
+        btn.style.boxShadow = active ? 'var(--dd-shadow)' : 'none';
+      });
+
+      const content = root.querySelector('#tabContent');
+      content.innerHTML = '';
+      if (currentTab === 'template') {
+        renderTemplateList(content);
+      } else {
+        renderCustomForm(content);
+      }
+    }
+
+    /* --- 템플릿 탭 --- */
+    function renderTemplateList(container) {
+      container.innerHTML = templates.map((tpl) => `
+        <div class="dd-card p-4 mb-3">
+          <div class="flex items-start justify-between gap-3 mb-3">
+            <div class="flex-1 min-w-0">
+              <div class="font-bold text-base" style="color: var(--dd-text);">
+                ${escapeHtml(tpl.title)}
+              </div>
+              <div class="text-xs mt-1" style="color: var(--dd-text-sub);">
+                ${tpl.size}강 · ${escapeHtml(tpl.description)}
+              </div>
+            </div>
+            <button class="dd-btn-primary px-4 py-2 text-sm shrink-0" data-tpl="${tpl.key}">
+              사용하기
+            </button>
+          </div>
+          <div class="flex flex-wrap gap-1 pt-2" style="border-top: 1px dashed var(--dd-border);">
+            ${tpl.items.slice(0, 8).map((it) => `
+              <span class="text-xs px-2 py-1 rounded-full" style="background: var(--dd-bg); color: var(--dd-text-sub);">
+                ${it.emoji} ${escapeHtml(it.text)}
+              </span>
+            `).join('')}
+            ${tpl.items.length > 8 ? `<span class="text-xs px-2 py-1" style="color: var(--dd-text-sub);">+${tpl.items.length - 8}개 더</span>` : ''}
+          </div>
+        </div>
+      `).join('');
+
+      container.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-tpl]');
+        if (!btn) return;
+        const tpl = templates.find((t) => t.key === btn.dataset.tpl);
+        if (!tpl) return;
+        if (saveFromTemplate(tpl)) {
+          navigate('/');
+        }
+      });
+    }
+
+    /* --- 커스텀 탭 --- */
+    function renderCustomForm(container) {
+      container.innerHTML = `
+        <div class="dd-card p-4 mb-4">
+          <label class="block text-sm font-semibold mb-2" style="color: var(--dd-text);">
+            토너먼트 제목
+          </label>
+          <input
+            id="inpTitle"
+            type="text"
+            maxlength="40"
+            placeholder="예) 우리 반 최고의 체험학습"
+            class="w-full px-3 py-3 rounded-xl outline-none"
+            style="background: var(--dd-bg); border: 1px solid var(--dd-border); color: var(--dd-text);"
+          />
+
+          <label class="block text-sm font-semibold mt-4 mb-2" style="color: var(--dd-text);">
+            라운드 크기
+          </label>
+          <div class="flex gap-2">
+            <button data-size="8" class="dd-size-btn flex-1 py-2 rounded-xl text-sm font-semibold">8강</button>
+            <button data-size="16" class="dd-size-btn flex-1 py-2 rounded-xl text-sm font-semibold">16강</button>
+          </div>
+        </div>
+
+        <div class="mb-3 px-1 flex items-center justify-between">
+          <h2 class="text-sm font-bold" style="color: var(--dd-text);">후보 입력</h2>
+          <span class="text-xs" style="color: var(--dd-text-sub);">이모지는 선택, 이름은 필수</span>
+        </div>
+
+        <div id="itemsList" class="mb-4"></div>
+
+        <button id="btnSaveCustom" class="dd-btn-primary w-full py-4 text-base">
+          저장하고 돌아가기
+        </button>
+        <p id="formMsg" class="text-xs text-center mt-3 min-h-[16px]" style="color: var(--dd-coral-deep);"></p>
+      `;
+
+      const titleInput = container.querySelector('#inpTitle');
+      titleInput.value = customState.title;
+      titleInput.addEventListener('input', (e) => { customState.title = e.target.value; });
+
+      container.querySelectorAll('[data-size]').forEach((btn) => {
+        const size = Number(btn.dataset.size);
+        const active = customState.size === size;
+        btn.style.background = active ? 'var(--dd-coral)' : 'var(--dd-bg)';
+        btn.style.color = active ? 'var(--dd-white)' : 'var(--dd-text-sub)';
+        btn.style.border = active ? 'none' : '1px solid var(--dd-border)';
+        btn.addEventListener('click', () => {
+          if (customState.size === size) return;
+          customState.size = size;
+          // 기존 입력 보존하며 길이 조정
+          if (size > customState.items.length) {
+            while (customState.items.length < size) customState.items.push({ emoji: '', text: '' });
+          } else {
+            customState.items = customState.items.slice(0, size);
+          }
+          renderCustomForm(container);
+        });
+      });
+
+      const itemsList = container.querySelector('#itemsList');
+      itemsList.innerHTML = customState.items.map((it, idx) => `
+        <div class="flex gap-2 mb-2 items-center">
+          <span class="text-xs w-6 text-center shrink-0" style="color: var(--dd-text-sub);">${idx + 1}</span>
+          <input
+            type="text"
+            data-field="emoji"
+            data-idx="${idx}"
+            maxlength="4"
+            placeholder="🎯"
+            value="${escapeHtml(it.emoji)}"
+            class="w-14 px-2 py-2 rounded-xl text-center outline-none"
+            style="background: var(--dd-white); border: 1px solid var(--dd-border);"
+          />
+          <input
+            type="text"
+            data-field="text"
+            data-idx="${idx}"
+            maxlength="20"
+            placeholder="후보 이름"
+            value="${escapeHtml(it.text)}"
+            class="flex-1 px-3 py-2 rounded-xl outline-none"
+            style="background: var(--dd-white); border: 1px solid var(--dd-border);"
+          />
+        </div>
+      `).join('');
+
+      itemsList.addEventListener('input', (e) => {
+        const input = e.target.closest('input[data-idx]');
+        if (!input) return;
+        const idx = Number(input.dataset.idx);
+        const field = input.dataset.field;
+        customState.items[idx][field] = input.value;
+      });
+
+      container.querySelector('#btnSaveCustom').addEventListener('click', () => {
+        const msgEl = container.querySelector('#formMsg');
+        const err = validateCustom(customState);
+        if (err) {
+          msgEl.textContent = err;
+          return;
+        }
+        if (saveFromCustom(customState)) {
+          navigate('/');
+        } else {
+          msgEl.textContent = '저장에 실패했어요. 용량을 확인해주세요.';
+        }
+      });
+    }
+
+    renderShell();
+  }
+
+  /* ===========================================================
+   * 💾 저장 헬퍼 (create 화면 전용)
+   * =========================================================== */
+  function newId() {
+    return (crypto?.randomUUID?.() || 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8));
+  }
+
+  function saveFromTemplate(tpl) {
+    const tournament = {
+      id: newId(),
+      title: tpl.title,
+      type: 'template',
+      templateKey: tpl.key,
+      items: tpl.items.map((it, i) => ({ id: 'i' + i, emoji: it.emoji, text: it.text })),
+      createdAt: Date.now(),
+    };
+    return storage.saveTournament(tournament);
+  }
+
+  function validateCustom(state) {
+    const title = (state.title || '').trim();
+    if (!title) return '제목을 입력해주세요.';
+    if (title.length < 2) return '제목은 2자 이상이어야 해요.';
+    const filled = state.items.filter((it) => (it.text || '').trim().length > 0);
+    if (filled.length !== state.size) {
+      return `${state.size}개 후보를 모두 입력해주세요. (현재 ${filled.length}개)`;
+    }
+    // 중복 텍스트 체크
+    const names = filled.map((it) => it.text.trim());
+    if (new Set(names).size !== names.length) return '중복된 후보 이름이 있어요.';
+    return null;
+  }
+
+  function saveFromCustom(state) {
+    const tournament = {
+      id: newId(),
+      title: state.title.trim(),
+      type: 'custom',
+      items: state.items.map((it, i) => ({
+        id: 'i' + i,
+        emoji: (it.emoji || '').trim() || '🎯',
+        text: it.text.trim(),
+      })),
+      createdAt: Date.now(),
+    };
+    return storage.saveTournament(tournament);
+  }
+
+  /* ===========================================================
+   * 🧩 플레이스홀더 화면 (Phase 3~4에서 교체 예정)
    * =========================================================== */
   function renderPlaceholder(title, message) {
     return function (root) {
