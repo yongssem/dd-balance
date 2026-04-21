@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#FF9A8B" />
+<title>🏆 뚝딱밸런스 — 우리 반이 뽑는 최고의 선택</title>
+
+<!-- Pretendard 폰트 CDN -->
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+
+<!-- Tailwind CDN (L1 개발 편의용) -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+  /* 뚝딱 파스텔 디자인 토큰 */
+  :root {
+    --dd-bg: #FFF8F0;          /* 크림 배경 */
+    --dd-coral: #FF9A8B;       /* 주요 강조 (코랄) */
+    --dd-coral-deep: #FF6B6B;  /* hover 코랄 딥 */
+    --dd-mint: #A8E6CF;        /* 보조 강조 (민트) */
+    --dd-text: #2D3748;        /* 기본 텍스트 */
+    --dd-text-sub: #64748B;    /* 보조 텍스트 */
+    --dd-border: #FFE5DC;      /* 테두리 */
+    --dd-white: #FFFFFF;
+    --dd-radius: 20px;
+    --dd-shadow: 0 4px 16px rgba(255, 154, 139, 0.12);
+    --dd-shadow-lg: 0 8px 24px rgba(255, 107, 107, 0.2);
+  }
+
+  * { -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    background-color: var(--dd-bg);
+    color: var(--dd-text);
+    font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-feature-settings: 'ss01', 'ss02';
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* 기본 카드 */
+  .dd-card {
+    background: var(--dd-white);
+    border: 1px solid var(--dd-border);
+    border-radius: var(--dd-radius);
+    box-shadow: var(--dd-shadow);
+  }
+
+  /* 주요 버튼 (코랄) */
+  .dd-btn-primary {
+    background: var(--dd-coral);
+    color: var(--dd-white);
+    border-radius: var(--dd-radius);
+    font-weight: 700;
+    transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+    will-change: transform;
+  }
+  .dd-btn-primary:hover { background: var(--dd-coral-deep); box-shadow: var(--dd-shadow-lg); }
+  .dd-btn-primary:active { transform: scale(0.97); }
+
+  /* 보조 버튼 (민트) */
+  .dd-btn-secondary {
+    background: var(--dd-mint);
+    color: var(--dd-text);
+    border-radius: var(--dd-radius);
+    font-weight: 600;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+  .dd-btn-secondary:hover { opacity: 0.85; }
+  .dd-btn-secondary:active { transform: scale(0.97); }
+
+  /* 고스트 버튼 */
+  .dd-btn-ghost {
+    background: transparent;
+    color: var(--dd-text-sub);
+    border: 1px solid var(--dd-border);
+    border-radius: 12px;
+    transition: background-color 0.15s ease;
+  }
+  .dd-btn-ghost:hover { background: var(--dd-border); }
+
+  /* 로고 뱃지 */
+  .dd-logo-badge {
+    background: linear-gradient(135deg, var(--dd-coral) 0%, var(--dd-coral-deep) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* 페이지 전환 애니메이션 (GPU 가속) */
+  .dd-fade-in {
+    animation: ddFadeIn 0.25s ease-out;
+  }
+  @keyframes ddFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* 빈 상태 일러스트 박스 */
+  .dd-empty {
+    border: 2px dashed var(--dd-border);
+    border-radius: var(--dd-radius);
+    color: var(--dd-text-sub);
+  }
+
+  /* 푸터 링크 hover */
+  footer a:hover { color: var(--dd-coral-deep) !important; }
+</style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+<!-- 앱 마운트 포인트 -->
+<main id="app" class="flex-1 w-full max-w-[640px] mx-auto px-4 py-6"></main>
+
+<!-- 푸터 -->
+<footer style="text-align:center; padding:24px 0; color:#64748b; font-size:12px;">
+  © 2026 <a href="https://mumuclass.kr" style="color:#64748b;">무궁무진클래스</a> · 용쌤
+</footer>
+
+<script type="module">
+  /* ===========================================================
+   * 🔑 storage 객체 (localStorage 격리 계층)
+   * - UI/로직 코드는 절대 localStorage 직접 호출 금지
+   * - L3 전환 시 이 객체 내부만 Firestore로 교체
+   * =========================================================== */
+  const STORAGE_KEY = 'ddalkak-balance-v1';
+
+  const defaultState = () => ({
+    tournaments: {}, // [id]: { id, title, type, items, createdAt }
+    votes: {},       // [tournamentId]: { rounds, champion, completedAt }
+    results: {},     // [tournamentId]: { submissions: [...] }
+  });
+
+  // 내부: 전체 상태 읽기
+  function readState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return defaultState();
+      const parsed = JSON.parse(raw);
+      // 필수 키 보정 (스키마 진화 대비)
+      return {
+        tournaments: parsed.tournaments || {},
+        votes: parsed.votes || {},
+        results: parsed.results || {},
+      };
+    } catch (e) {
+      console.warn('[storage] 상태 읽기 실패, 초기화:', e);
+      return defaultState();
+    }
+  }
+
+  // 내부: 전체 상태 쓰기
+  function writeState(state) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      return true;
+    } catch (e) {
+      console.error('[storage] 저장 실패:', e);
+      return false;
+    }
+  }
+
+  // 🔑 storage API — 외부 코드는 오직 이 객체를 통해서만 접근
+  const storage = {
+    // 토너먼트 단건 조회
+    getTournament(id) {
+      const state = readState();
+      return state.tournaments[id] || null;
+    },
+
+    // 토너먼트 저장 (신규 + 수정 겸용)
+    saveTournament(tournament) {
+      if (!tournament || !tournament.id) {
+        throw new Error('[storage] tournament.id 필수');
+      }
+      const state = readState();
+      state.tournaments[tournament.id] = tournament;
+      return writeState(state);
+    },
+
+    // 내가 만든 토너먼트 목록 (최신순)
+    listMyTournaments() {
+      const state = readState();
+      return Object.values(state.tournaments)
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    },
+
+    // 토너먼트 삭제 (관련 votes/results 함께 정리)
+    deleteTournament(id) {
+      const state = readState();
+      delete state.tournaments[id];
+      delete state.votes[id];
+      delete state.results[id];
+      return writeState(state);
+    },
+
+    // 전체 백업 (JSON 문자열)
+    exportBackup() {
+      const state = readState();
+      return JSON.stringify(state, null, 2);
+    },
+
+    // 백업 복구 (JSON 문자열 받아서 덮어쓰기)
+    importBackup(json) {
+      try {
+        const parsed = JSON.parse(json);
+        const next = {
+          tournaments: parsed.tournaments || {},
+          votes: parsed.votes || {},
+          results: parsed.results || {},
+        };
+        return writeState(next);
+      } catch (e) {
+        console.error('[storage] 백업 복구 실패:', e);
+        return false;
+      }
+    },
+  };
+
+  /* ===========================================================
+   * 🛣️ 해시 라우터
+   * - #/ 홈 / #/create / #/play / #/result
+   * - L1 Phase 1에서는 홈만 구현, 나머지는 "준비 중"
+   * =========================================================== */
+  const routes = {
+    '/': renderHome,
+    '/create': renderPlaceholder('주제 생성', 'Phase 2에서 만나요!'),
+    '/play': renderPlaceholder('투표 화면', 'Phase 3에서 만나요!'),
+    '/result': renderPlaceholder('결과 화면', 'Phase 4에서 만나요!'),
+  };
+
+  // 해시 → { path, query }
+  function parseHash() {
+    const raw = location.hash.replace(/^#/, '') || '/';
+    const [path, queryStr = ''] = raw.split('?');
+    const query = {};
+    new URLSearchParams(queryStr).forEach((v, k) => { query[k] = v; });
+    return { path: path || '/', query };
+  }
+
+  // 라우터 실행
+  function router() {
+    const { path, query } = parseHash();
+    const view = routes[path] || renderNotFound;
+    const app = document.getElementById('app');
+    app.innerHTML = '';
+    app.classList.remove('dd-fade-in');
+    // 리플로우 강제 후 재시작 (애니메이션 재실행용)
+    void app.offsetWidth;
+    app.classList.add('dd-fade-in');
+    view(app, query);
+  }
+
+  // 네비게이션 헬퍼
+  function navigate(path) {
+    location.hash = path;
+  }
+
+  /* ===========================================================
+   * 🏠 홈 화면 (#/)
+   * =========================================================== */
+  function renderHome(root) {
+    const tournaments = storage.listMyTournaments();
+
+    root.innerHTML = `
+      <!-- 상단 로고 영역 -->
+      <header class="text-center pt-6 pb-8">
+        <h1 class="text-4xl sm:text-5xl font-black dd-logo-badge mb-2">
+          🏆 뚝딱밸런스
+        </h1>
+        <p class="text-sm sm:text-base" style="color: var(--dd-text-sub);">
+          우리 반이 뽑는 최고의 선택
+        </p>
+      </header>
+
+      <!-- 중앙 CTA -->
+      <section class="mb-10">
+        <button
+          id="btnCreate"
+          class="dd-btn-primary w-full py-5 text-lg sm:text-xl shadow-md"
+          aria-label="새 토너먼트 만들기"
+        >
+          ✨ 새 토너먼트 만들기
+        </button>
+      </section>
+
+      <!-- 내 토너먼트 목록 -->
+      <section>
+        <div class="flex items-center justify-between mb-3 px-1">
+          <h2 class="text-base font-bold" style="color: var(--dd-text);">
+            📚 내 토너먼트
+          </h2>
+          <span class="text-xs" style="color: var(--dd-text-sub);">
+            총 ${tournaments.length}개
+          </span>
+        </div>
+
+        <div id="tournamentList"></div>
+      </section>
+    `;
+
+    // CTA 바인딩 (터치/클릭 모두 처리)
+    const btnCreate = root.querySelector('#btnCreate');
+    btnCreate.addEventListener('click', () => navigate('/create'));
+
+    // 목록 렌더
+    const listEl = root.querySelector('#tournamentList');
+    if (tournaments.length === 0) {
+      listEl.innerHTML = `
+        <div class="dd-empty p-10 text-center">
+          <div class="text-4xl mb-3">🌱</div>
+          <p class="text-sm">아직 만든 토너먼트가 없어요</p>
+          <p class="text-xs mt-1" style="color: var(--dd-text-sub);">
+            위 버튼으로 첫 주제를 만들어보세요!
+          </p>
+        </div>
+      `;
+    } else {
+      listEl.innerHTML = tournaments.map((t) => `
+        <div class="dd-card p-4 mb-3 flex items-center justify-between gap-3">
+          <div class="flex-1 min-w-0">
+            <div class="font-bold truncate" style="color: var(--dd-text);">
+              ${escapeHtml(t.title || '(제목 없음)')}
+            </div>
+            <div class="text-xs mt-1" style="color: var(--dd-text-sub);">
+              ${(t.items || []).length}강 · ${formatDate(t.createdAt)}
+            </div>
+          </div>
+          <div class="flex gap-2 shrink-0">
+            <button class="dd-btn-secondary px-3 py-2 text-sm" data-action="play" data-id="${t.id}">
+              투표
+            </button>
+            <button class="dd-btn-ghost px-3 py-2 text-sm" data-action="delete" data-id="${t.id}" aria-label="삭제">
+              🗑️
+            </button>
+          </div>
+        </div>
+      `).join('');
+
+      // 이벤트 위임
+      listEl.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-action]');
+        if (!btn) return;
+        const { action, id } = btn.dataset;
+        if (action === 'play') {
+          navigate(`/play?t=${encodeURIComponent(id)}`);
+        } else if (action === 'delete') {
+          if (confirm('이 토너먼트를 삭제할까요?')) {
+            storage.deleteTournament(id);
+            router(); // 재렌더
+          }
+        }
+      });
+    }
+  }
+
+  /* ===========================================================
+   * 🧩 플레이스홀더 화면 (Phase 2~4에서 교체 예정)
+   * =========================================================== */
+  function renderPlaceholder(title, message) {
+    return function (root) {
+      root.innerHTML = `
+        <header class="text-center pt-6 pb-8">
+          <h1 class="text-3xl font-black dd-logo-badge mb-2">${title}</h1>
+          <p class="text-sm" style="color: var(--dd-text-sub);">${message}</p>
+        </header>
+        <div class="dd-empty p-10 text-center">
+          <div class="text-4xl mb-3">🚧</div>
+          <p class="text-sm">준비 중</p>
+        </div>
+        <div class="mt-6 text-center">
+          <button id="btnHome" class="dd-btn-ghost px-5 py-3">← 홈으로</button>
+        </div>
+      `;
+      root.querySelector('#btnHome').addEventListener('click', () => navigate('/'));
+    };
+  }
+
+  function renderNotFound(root) {
+    root.innerHTML = `
+      <header class="text-center pt-10">
+        <h1 class="text-3xl font-black dd-logo-badge mb-2">🤔 페이지를 찾을 수 없어요</h1>
+        <p class="text-sm" style="color: var(--dd-text-sub);">잘못된 경로입니다.</p>
+      </header>
+      <div class="mt-8 text-center">
+        <button id="btnHome" class="dd-btn-primary px-6 py-3">홈으로 가기</button>
+      </div>
+    `;
+    root.querySelector('#btnHome').addEventListener('click', () => navigate('/'));
+  }
+
+  /* ===========================================================
+   * 🛠️ 유틸
+   * =========================================================== */
+  function escapeHtml(str) {
+    return String(str)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
+  function formatDate(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}.${m}.${day}`;
+  }
+
+  /* ===========================================================
+   * 🚀 부트스트랩
+   * =========================================================== */
+  window.addEventListener('hashchange', router);
+  window.addEventListener('DOMContentLoaded', () => {
+    if (!location.hash) location.hash = '/';
+    router();
+  });
+
+  // 개발 편의: 콘솔에서 storage 접근 (배포 시 제거 고려)
+  window.__ddalkak = { storage };
+</script>
+
+</body>
+</html>
