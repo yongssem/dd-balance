@@ -583,7 +583,7 @@
       </header>
 
       <!-- 중앙 CTA -->
-      <section class="mb-10">
+      <section class="mb-5">
         <button
           id="btnCreate"
           class="dd-btn-primary w-full py-5 text-lg sm:text-xl shadow-md"
@@ -592,6 +592,9 @@
           ✨ 새 토너먼트 만들기
         </button>
       </section>
+
+      <!-- 📲 학생 초대 QR -->
+      <section id="inviteQR" class="mb-8"></section>
 
       <!-- 내 토너먼트 목록 -->
       <section>
@@ -612,6 +615,9 @@
     const btnCreate = root.querySelector('#btnCreate');
     btnCreate.addEventListener('click', () => navigate('/create'));
     root.querySelector('#btnSettings').addEventListener('click', () => navigate('/settings'));
+
+    // 📲 학생 초대 QR 섹션
+    renderHomeInviteQR(root.querySelector('#inviteQR'));
 
     // 목록 렌더
     const listEl = root.querySelector('#tournamentList');
@@ -1349,12 +1355,67 @@
     return card;
   }
 
+  /* 📦 QRCode 라이브러리 로드 대기 (defer 스크립트 타이밍 보정) */
+  function whenQRReady(timeoutMs = 4000) {
+    return new Promise((resolve, reject) => {
+      if (typeof QRCode !== 'undefined') return resolve(QRCode);
+      const start = Date.now();
+      const tick = () => {
+        if (typeof QRCode !== 'undefined') return resolve(QRCode);
+        if (Date.now() - start > timeoutMs) return reject(new Error('QRCode load timeout'));
+        setTimeout(tick, 120);
+      };
+      tick();
+    });
+  }
+
+  /* 📲 홈 화면 초대 QR 렌더 (앱 루트 URL) */
+  async function renderHomeInviteQR(container) {
+    if (!container) return;
+    const url = location.origin + location.pathname;
+    container.innerHTML = `
+      <div class="dd-card p-3 flex items-center gap-3">
+        <div id="homeQrWrap" class="shrink-0 flex items-center justify-center"
+          style="width:84px; height:84px; background: var(--dd-bg); border-radius: 12px;">
+          <span class="text-xs" style="color: var(--dd-text-sub);">···</span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-bold" style="color: var(--dd-text);">
+            📲 학생 초대
+          </div>
+          <div class="text-xs mt-1" style="color: var(--dd-text-sub);">
+            QR을 스캔하면 앱이 열려요
+          </div>
+          <button id="btnInviteEnlarge"
+            class="text-xs font-bold mt-2 underline"
+            style="color: var(--dd-coral-deep);">
+            크게 보기 →
+          </button>
+        </div>
+      </div>
+    `;
+
+    container.querySelector('#btnInviteEnlarge').addEventListener('click', () => {
+      showQRModal(url, '뚝딱밸런스');
+    });
+
+    try {
+      await whenQRReady();
+      const wrap = container.querySelector('#homeQrWrap');
+      wrap.innerHTML = '<canvas id="homeQrCanvas"></canvas>';
+      QRCode.toCanvas(container.querySelector('#homeQrCanvas'), url, {
+        width: 84,
+        margin: 1,
+        color: { dark: '#2D3748', light: '#FFFFFF' },
+      }, (err) => { if (err) console.error('[QR home]', err); });
+    } catch (e) {
+      const wrap = container.querySelector('#homeQrWrap');
+      if (wrap) wrap.innerHTML = '<span class="text-xs" style="color: var(--dd-coral-deep);">로드 실패</span>';
+    }
+  }
+
   /* 📱 QR 모달 */
   function showQRModal(url, title) {
-    if (typeof QRCode === 'undefined') {
-      alert('QR 라이브러리 로딩 중입니다. 잠시 후 다시 시도해주세요.');
-      return;
-    }
     const modal = document.createElement('div');
     modal.className = 'dd-modal';
     modal.innerHTML = `
@@ -1386,14 +1447,26 @@
       }
     });
 
-    // QR 생성
-    QRCode.toCanvas(modal.querySelector('#qrCanvas'), url, {
-      width: 240,
-      margin: 2,
-      color: { dark: '#2D3748', light: '#FFFFFF' },
-    }, (err) => {
-      if (err) console.error('[QR]', err);
-    });
+    // QR 생성 (라이브러리 로드 대기)
+    whenQRReady()
+      .then(() => {
+        QRCode.toCanvas(modal.querySelector('#qrCanvas'), url, {
+          width: 240,
+          margin: 2,
+          color: { dark: '#2D3748', light: '#FFFFFF' },
+        }, (err) => { if (err) console.error('[QR]', err); });
+      })
+      .catch(() => {
+        const canvas = modal.querySelector('#qrCanvas');
+        if (canvas) {
+          const warn = document.createElement('div');
+          warn.className = 'text-xs';
+          warn.style.color = 'var(--dd-coral-deep)';
+          warn.style.margin = '12px 0';
+          warn.textContent = 'QR 라이브러리 로드 실패. 새로고침 후 다시 시도해주세요.';
+          canvas.replaceWith(warn);
+        }
+      });
   }
 
   /* 라운드 블록 렌더 */
