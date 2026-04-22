@@ -12,6 +12,12 @@
 <!-- Tailwind CDN (L1 개발 편의용) -->
 <script src="https://cdn.tailwindcss.com"></script>
 
+<!-- html2canvas (결과 이미지 저장) -->
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<!-- QRCode (학생 공유용 QR 코드) -->
+<script defer src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+
 <style>
   /* 뚝딱 파스텔 디자인 토큰 */
   :root {
@@ -247,6 +253,40 @@
   .dd-match-vs {
     font-size: 10px; font-weight: 900; color: var(--dd-text-sub);
     letter-spacing: 1px;
+  }
+
+  /* 모달 */
+  .dd-modal {
+    position: fixed; inset: 0; z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+  }
+  .dd-modal-backdrop {
+    position: absolute; inset: 0;
+    background: rgba(45, 55, 72, 0.55);
+    animation: ddFadeIn 0.2s ease-out;
+  }
+  .dd-modal-body {
+    position: relative;
+    background: var(--dd-white);
+    border-radius: 24px;
+    padding: 24px 20px;
+    max-width: 340px; width: 100%;
+    text-align: center;
+    box-shadow: var(--dd-shadow-lg);
+    animation: ddModalIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes ddModalIn {
+    from { opacity: 0; transform: scale(0.88); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  .dd-modal-body canvas { margin: 12px auto; display: block; border-radius: 12px; }
+  .dd-qr-url {
+    font-size: 11px; color: var(--dd-text-sub);
+    word-break: break-all;
+    background: var(--dd-bg); padding: 8px 10px;
+    border-radius: 10px; margin: 10px 0 14px;
+    text-align: left;
   }
 
   /* 우승 경로 리스트 */
@@ -1172,9 +1212,13 @@
       </section>
 
       <!-- 액션 버튼 -->
+      <div class="grid grid-cols-2 gap-2 mb-2">
+        <button id="btnSaveImg" class="dd-btn-primary py-3 text-sm">📸 이미지 저장</button>
+        <button id="btnQR" class="dd-btn-primary py-3 text-sm">📱 QR 공유</button>
+      </div>
       <div class="flex flex-col gap-2 mb-4">
-        <button id="btnReplay" class="dd-btn-primary w-full py-3">🔁 다시 투표하기</button>
         <button id="btnShare" class="dd-btn-secondary w-full py-3">🔗 링크 복사하기</button>
+        <button id="btnReplay" class="dd-btn-ghost w-full py-3">🔁 다시 투표하기</button>
         <button id="btnHome" class="dd-btn-ghost w-full py-3">홈으로</button>
       </div>
       <p id="shareMsg" class="text-center text-xs min-h-[16px]" style="color: var(--dd-coral-deep);"></p>
@@ -1187,18 +1231,168 @@
         navigate(`/play?t=${encodeURIComponent(tid)}`);
       }
     });
-    root.querySelector('#btnShare').addEventListener('click', async () => {
+    const shareUrl = location.origin + location.pathname + `#/play?t=${encodeURIComponent(tid)}`;
+    const flash = (text, ms = 2500) => {
       const msgEl = root.querySelector('#shareMsg');
-      const url = location.origin + location.pathname + `#/play?t=${encodeURIComponent(tid)}`;
+      msgEl.textContent = text;
+      setTimeout(() => { msgEl.textContent = ''; }, ms);
+    };
+
+    root.querySelector('#btnShare').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        flash('✅ 링크가 복사됐어요!');
+      } catch (e) {
+        prompt('아래 링크를 복사하세요', shareUrl);
+      }
+    });
+
+    root.querySelector('#btnSaveImg').addEventListener('click', () => {
+      saveResultImage(tournament, votes, flash);
+    });
+    root.querySelector('#btnQR').addEventListener('click', () => {
+      showQRModal(shareUrl, tournament.title);
+    });
+  }
+
+  /* 📸 결과 이미지 저장 — 오프스크린 카드 렌더 후 html2canvas 캡처 */
+  async function saveResultImage(tournament, votes, flash) {
+    if (typeof html2canvas !== 'function') {
+      flash('⏳ 이미지 라이브러리 로딩 중... 잠시 후 다시 시도해주세요');
+      return;
+    }
+    flash('📸 이미지 만드는 중...');
+    const card = buildShareCard(tournament, votes);
+    document.body.appendChild(card);
+    try {
+      const canvas = await html2canvas(card, {
+        backgroundColor: '#FFF8F0',
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+      canvas.toBlob((blob) => {
+        if (!blob) { flash('❌ 이미지 생성 실패'); return; }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const safe = (tournament.title || 'dduktak').replace(/[^\p{L}\p{N}\-_]/gu, '_').slice(0, 20);
+        a.href = url;
+        a.download = `ddalkak-${safe}-${Date.now()}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        flash('✅ 이미지 저장 완료!');
+      }, 'image/png');
+    } catch (e) {
+      console.error(e);
+      flash('❌ 이미지 생성 실패');
+    } finally {
+      document.body.removeChild(card);
+    }
+  }
+
+  /* 공유 카드 (html2canvas 캡처 대상) — 오프스크린 렌더 */
+  function buildShareCard(tournament, votes) {
+    const champ = votes.champion;
+    const path = getChampionPath(votes.rounds, champ);
+    const card = document.createElement('div');
+    card.style.cssText = [
+      'position: fixed', 'left: -9999px', 'top: 0',
+      'width: 540px', 'padding: 36px',
+      'background: linear-gradient(135deg, #FFF8F0 0%, #FFE5DC 100%)',
+      "font-family: 'Pretendard Variable', Pretendard, -apple-system, system-ui, sans-serif",
+      'color: #2D3748', 'box-sizing: border-box',
+    ].join(';');
+    card.innerHTML = `
+      <div style="text-align:center; margin-bottom:20px;">
+        <div style="font-size:13px; font-weight:900; color:#FF6B6B; letter-spacing:3px;">🏆 뚝딱밸런스</div>
+        <div style="font-size:22px; font-weight:900; margin-top:6px; color:#2D3748;">
+          ${escapeHtml(tournament.title)}
+        </div>
+      </div>
+
+      <div style="background: linear-gradient(135deg, #FFF0D6 0%, #FFE5DC 50%, #FFD6C7 100%);
+        border:3px solid #FF9A8B; border-radius:28px; padding:36px 20px; text-align:center;
+        box-shadow: 0 8px 24px rgba(255,107,107,0.15);">
+        <div style="display:inline-block; background:#FF6B6B; color:#FFFFFF; padding:4px 16px;
+          border-radius:999px; font-size:12px; font-weight:900; letter-spacing:2px;">CHAMPION</div>
+        <div style="font-size:108px; line-height:1; margin:14px 0 6px;">${champ.emoji || '🏆'}</div>
+        <div style="font-size:30px; font-weight:900; color:#2D3748;">${escapeHtml(champ.text)}</div>
+        <div style="font-size:11px; color:#64748B; margin-top:8px;">
+          ${formatDate(votes.completedAt)}
+        </div>
+      </div>
+
+      <div style="margin-top:18px; background:#FFFFFF; border:1px solid #FFE5DC;
+        border-radius:20px; padding:18px 20px;">
+        <div style="font-size:14px; font-weight:800; margin-bottom:10px; color:#2D3748;">
+          🛤️ 우승까지의 여정
+        </div>
+        ${path.map((p, i) => `
+          <div style="display:flex; align-items:center; gap:10px; padding:8px 0; ${i > 0 ? 'border-top:1px dashed #FFE5DC;' : ''}">
+            <div style="background:#FFF8F0; color:#FF6B6B; font-weight:800; font-size:11px;
+              padding:4px 10px; border-radius:8px; flex-shrink:0;">${roundLabel(p.size)}</div>
+            <div style="font-size:14px; flex:1;">
+              <b style="color:#FF6B6B;">${escapeHtml(champ.text)}</b>
+              <span style="color:#64748B; font-size:12px;"> vs </span>
+              <span style="color:#64748B; text-decoration:line-through;">${escapeHtml(p.opponent.text)}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div style="text-align:center; margin-top:18px; font-size:11px; color:#64748B;">
+        © 2026 무궁무진클래스 · 용쌤 · mumuclass.kr
+      </div>
+    `;
+    return card;
+  }
+
+  /* 📱 QR 모달 */
+  function showQRModal(url, title) {
+    if (typeof QRCode === 'undefined') {
+      alert('QR 라이브러리 로딩 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+    const modal = document.createElement('div');
+    modal.className = 'dd-modal';
+    modal.innerHTML = `
+      <div class="dd-modal-backdrop"></div>
+      <div class="dd-modal-body">
+        <h3 class="text-lg font-black mb-1" style="color: var(--dd-text);">📱 QR로 공유하기</h3>
+        <p class="text-xs" style="color: var(--dd-text-sub);">
+          학생들이 스캔하면 바로 투표할 수 있어요
+        </p>
+        <canvas id="qrCanvas" width="240" height="240"></canvas>
+        <div class="dd-qr-url">${escapeHtml(url)}</div>
+        <div class="flex gap-2">
+          <button id="btnQrCopy" class="dd-btn-secondary flex-1 py-2 text-sm">🔗 링크 복사</button>
+          <button id="btnQrClose" class="dd-btn-primary flex-1 py-2 text-sm">닫기</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const close = () => modal.remove();
+    modal.querySelector('#btnQrClose').addEventListener('click', close);
+    modal.querySelector('.dd-modal-backdrop').addEventListener('click', close);
+    modal.querySelector('#btnQrCopy').addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(url);
-        msgEl.textContent = '✅ 링크가 복사됐어요!';
+        modal.querySelector('#btnQrCopy').textContent = '✅ 복사됨';
       } catch (e) {
-        // 폴백: prompt로 노출
         prompt('아래 링크를 복사하세요', url);
-        msgEl.textContent = '';
       }
-      setTimeout(() => { msgEl.textContent = ''; }, 2500);
+    });
+
+    // QR 생성
+    QRCode.toCanvas(modal.querySelector('#qrCanvas'), url, {
+      width: 240,
+      margin: 2,
+      color: { dark: '#2D3748', light: '#FFFFFF' },
+    }, (err) => {
+      if (err) console.error('[QR]', err);
     });
   }
 
