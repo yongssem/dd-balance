@@ -105,6 +105,70 @@
 
   /* 푸터 링크 hover */
   footer a:hover { color: var(--dd-coral-deep) !important; }
+
+  /* 투표 카드 */
+  .dd-vs-card {
+    background: var(--dd-white);
+    border: 2px solid var(--dd-border);
+    border-radius: var(--dd-radius);
+    padding: 28px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, opacity 0.25s ease;
+    will-change: transform, opacity;
+    width: 100%;
+  }
+  .dd-vs-card:hover { border-color: var(--dd-coral); box-shadow: var(--dd-shadow); }
+  .dd-vs-card:active { transform: scale(0.97); }
+  .dd-vs-card.is-picked {
+    border-color: var(--dd-coral-deep);
+    box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.15), var(--dd-shadow-lg);
+    transform: scale(1.03);
+  }
+  .dd-vs-card.is-lost { opacity: 0.25; transform: scale(0.95); }
+
+  .dd-vs-emoji { font-size: 64px; line-height: 1.1; }
+  @media (min-width: 480px) { .dd-vs-emoji { font-size: 80px; } }
+
+  .dd-vs-text {
+    margin-top: 12px;
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--dd-text);
+    word-break: keep-all;
+  }
+
+  /* VS 뱃지 */
+  .dd-vs-badge {
+    font-weight: 900;
+    font-size: 14px;
+    color: var(--dd-coral-deep);
+    background: var(--dd-white);
+    border: 2px solid var(--dd-coral);
+    padding: 6px 14px;
+    border-radius: 999px;
+    letter-spacing: 1px;
+  }
+
+  /* 진행 바 */
+  .dd-progress-track {
+    background: var(--dd-border);
+    border-radius: 999px;
+    height: 6px;
+    overflow: hidden;
+  }
+  .dd-progress-fill {
+    background: linear-gradient(90deg, var(--dd-coral) 0%, var(--dd-coral-deep) 100%);
+    height: 100%;
+    transition: width 0.3s ease;
+  }
+
+  /* 라운드 전환 애니메이션 */
+  .dd-round-enter { animation: ddRoundEnter 0.35s ease-out; }
+  @keyframes ddRoundEnter {
+    from { opacity: 0; transform: translateY(12px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
 </style>
 </head>
 <body class="min-h-screen flex flex-col">
@@ -191,6 +255,20 @@
       delete state.tournaments[id];
       delete state.votes[id];
       delete state.results[id];
+      return writeState(state);
+    },
+
+    // 투표 결과 조회 (완료된 토너먼트)
+    getVotes(tournamentId) {
+      const state = readState();
+      return state.votes[tournamentId] || null;
+    },
+
+    // 투표 결과 저장 (rounds/champion/completedAt)
+    saveVotes(tournamentId, votes) {
+      if (!tournamentId) throw new Error('[storage] tournamentId 필수');
+      const state = readState();
+      state.votes[tournamentId] = votes;
       return writeState(state);
     },
 
@@ -297,7 +375,7 @@
   const routes = {
     '/': renderHome,
     '/create': renderCreate,
-    '/play': renderPlaceholder('투표 화면', 'Phase 3에서 만나요!'),
+    '/play': renderPlay,
     '/result': renderPlaceholder('결과 화면', 'Phase 4에서 만나요!'),
   };
 
@@ -690,7 +768,192 @@
   }
 
   /* ===========================================================
-   * 🧩 플레이스홀더 화면 (Phase 3~4에서 교체 예정)
+   * 🏟️ 투표 화면 (#/play?t={id})
+   * - 토너먼트 items 셔플 → 라운드별 매치 생성 → 승자 누적
+   * - 결승 완료 시 votes 저장 후 #/result 로 이동
+   * =========================================================== */
+  function renderPlay(root, query) {
+    const tid = query?.t;
+    const tournament = tid ? storage.getTournament(tid) : null;
+
+    // 예외 케이스 처리
+    if (!tournament) {
+      renderPlayError(root, '토너먼트를 찾을 수 없어요', '링크가 잘못되었거나 삭제된 토너먼트일 수 있어요.');
+      return;
+    }
+    const items = tournament.items || [];
+    if (items.length < 2 || (items.length & (items.length - 1)) !== 0) {
+      renderPlayError(root, '후보 개수가 맞지 않아요', '토너먼트는 2, 4, 8, 16개 단위여야 해요.');
+      return;
+    }
+
+    // 진행 상태 (세션 휘발)
+    const state = {
+      rounds: [],           // 완료된 라운드들 [{ size, matches:[{a,b,winner}] }]
+      currentMatches: buildMatches(shuffle([...items])),
+      currentIdx: 0,
+      winners: [],
+      locked: false,
+    };
+
+    render();
+
+    function render() {
+      const match = state.currentMatches[state.currentIdx];
+      if (!match) return; // 안전 장치 (전이 중)
+      const totalMatches = state.currentMatches.length;
+      const size = totalMatches * 2;
+      const progress = Math.round((state.currentIdx / totalMatches) * 100);
+
+      root.innerHTML = `
+        <header class="flex items-center gap-3 pt-4 pb-2">
+          <button id="btnBack" class="dd-btn-ghost px-3 py-2 text-sm" aria-label="홈으로">←</button>
+          <div class="flex-1 min-w-0">
+            <div class="text-xs truncate" style="color: var(--dd-text-sub);">
+              ${escapeHtml(tournament.title)}
+            </div>
+            <div class="text-lg font-black" style="color: var(--dd-text);">
+              ${roundLabel(size)} <span style="color: var(--dd-coral-deep);">${state.currentIdx + 1}/${totalMatches}</span>
+            </div>
+          </div>
+        </header>
+
+        <div class="dd-progress-track mb-6">
+          <div class="dd-progress-fill" style="width: ${progress}%;"></div>
+        </div>
+
+        <div id="matchArea" class="dd-round-enter">
+          <button class="dd-vs-card" data-pick="a" aria-label="${escapeHtml(match.a.text)} 선택">
+            <div class="dd-vs-emoji">${match.a.emoji || '🎯'}</div>
+            <div class="dd-vs-text">${escapeHtml(match.a.text)}</div>
+          </button>
+
+          <div class="flex justify-center my-3">
+            <span class="dd-vs-badge">VS</span>
+          </div>
+
+          <button class="dd-vs-card" data-pick="b" aria-label="${escapeHtml(match.b.text)} 선택">
+            <div class="dd-vs-emoji">${match.b.emoji || '🎯'}</div>
+            <div class="dd-vs-text">${escapeHtml(match.b.text)}</div>
+          </button>
+        </div>
+
+        <p class="text-center text-xs mt-6" style="color: var(--dd-text-sub);">
+          마음에 드는 쪽을 탭하세요
+        </p>
+      `;
+
+      root.querySelector('#btnBack').addEventListener('click', () => {
+        if (confirm('홈으로 돌아가면 진행 중인 투표가 사라져요. 계속할까요?')) {
+          navigate('/');
+        }
+      });
+
+      const cards = root.querySelectorAll('.dd-vs-card');
+      cards.forEach((card) => {
+        card.addEventListener('click', () => pick(card.dataset.pick));
+      });
+    }
+
+    function pick(side) {
+      if (state.locked) return;
+      state.locked = true;
+
+      const match = state.currentMatches[state.currentIdx];
+      match.winner = side;
+      const winner = side === 'a' ? match.a : match.b;
+      state.winners.push(winner);
+
+      // 선택 애니메이션 (GPU: transform/opacity)
+      const pickedEl = root.querySelector(`.dd-vs-card[data-pick="${side}"]`);
+      const lostEl = root.querySelector(`.dd-vs-card[data-pick="${side === 'a' ? 'b' : 'a'}"]`);
+      pickedEl?.classList.add('is-picked');
+      lostEl?.classList.add('is-lost');
+
+      setTimeout(() => {
+        state.currentIdx += 1;
+        if (state.currentIdx >= state.currentMatches.length) {
+          finishRound();
+        } else {
+          state.locked = false;
+          render();
+        }
+      }, 550);
+    }
+
+    function finishRound() {
+      const size = state.currentMatches.length * 2;
+      state.rounds.push({
+        size,
+        matches: state.currentMatches.map((m) => ({ a: m.a, b: m.b, winner: m.winner })),
+      });
+
+      if (state.winners.length === 1) {
+        // 챔피언 확정
+        const champion = state.winners[0];
+        storage.saveVotes(tournament.id, {
+          rounds: state.rounds,
+          champion,
+          completedAt: Date.now(),
+        });
+        navigate(`/result?t=${encodeURIComponent(tournament.id)}`);
+        return;
+      }
+
+      // 다음 라운드 준비 (이전 승자 순서 유지, 셔플 X — 대진 추적 용이)
+      state.currentMatches = buildMatches(state.winners);
+      state.winners = [];
+      state.currentIdx = 0;
+      state.locked = false;
+      render();
+    }
+  }
+
+  function renderPlayError(root, title, message) {
+    root.innerHTML = `
+      <header class="text-center pt-10 pb-6">
+        <h1 class="text-2xl font-black dd-logo-badge mb-2">${escapeHtml(title)}</h1>
+        <p class="text-sm" style="color: var(--dd-text-sub);">${escapeHtml(message)}</p>
+      </header>
+      <div class="dd-empty p-10 text-center mb-6">
+        <div class="text-4xl mb-2">🙈</div>
+      </div>
+      <button id="btnHome" class="dd-btn-primary w-full py-3">홈으로 가기</button>
+    `;
+    root.querySelector('#btnHome').addEventListener('click', () => navigate('/'));
+  }
+
+  /* 🎲 배열 셔플 (Fisher-Yates) */
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  /* 짝수 배열 → 매치 쌍 */
+  function buildMatches(items) {
+    const matches = [];
+    for (let i = 0; i < items.length; i += 2) {
+      matches.push({ a: items[i], b: items[i + 1], winner: null });
+    }
+    return matches;
+  }
+
+  /* 라운드 라벨 */
+  function roundLabel(size) {
+    if (size === 2) return '결승';
+    if (size === 4) return '4강';
+    if (size === 8) return '8강';
+    if (size === 16) return '16강';
+    if (size === 32) return '32강';
+    return size + '강';
+  }
+
+  /* ===========================================================
+   * 🧩 플레이스홀더 화면 (Phase 4에서 교체 예정)
    * =========================================================== */
   function renderPlaceholder(title, message) {
     return function (root) {
