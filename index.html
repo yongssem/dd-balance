@@ -388,6 +388,28 @@
         return false;
       }
     },
+
+    // 전체 초기화 (토너먼트/투표/결과 모두 삭제)
+    resetAll() {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+        return true;
+      } catch (e) {
+        console.error('[storage] 초기화 실패:', e);
+        return false;
+      }
+    },
+
+    // 저장 용량 요약 (바이트)
+    getStats() {
+      const state = readState();
+      const raw = localStorage.getItem(STORAGE_KEY) || '';
+      return {
+        tournamentCount: Object.keys(state.tournaments).length,
+        completedCount: Object.keys(state.votes).length,
+        bytes: new Blob([raw]).size,
+      };
+    },
   };
 
   /* ===========================================================
@@ -472,6 +494,7 @@
     '/create': renderCreate,
     '/play': renderPlay,
     '/result': renderResult,
+    '/settings': renderSettings,
   };
 
   // 해시 → { path, query }
@@ -509,7 +532,8 @@
 
     root.innerHTML = `
       <!-- 상단 로고 영역 -->
-      <header class="text-center pt-6 pb-8">
+      <header class="relative text-center pt-6 pb-8">
+        <button id="btnSettings" class="absolute top-4 right-0 dd-btn-ghost px-3 py-2 text-base" aria-label="설정">⚙️</button>
         <h1 class="text-4xl sm:text-5xl font-black dd-logo-badge mb-2">
           🏆 뚝딱밸런스
         </h1>
@@ -547,6 +571,7 @@
     // CTA 바인딩 (터치/클릭 모두 처리)
     const btnCreate = root.querySelector('#btnCreate');
     btnCreate.addEventListener('click', () => navigate('/create'));
+    root.querySelector('#btnSettings').addEventListener('click', () => navigate('/settings'));
 
     // 목록 렌더
     const listEl = root.querySelector('#tournamentList');
@@ -1224,6 +1249,127 @@
       });
     });
     return path;
+  }
+
+  /* ===========================================================
+   * ⚙️ 설정 화면 (#/settings)
+   * - 백업 다운로드 / 복구 / 초기화 / 저장 현황
+   * =========================================================== */
+  function renderSettings(root) {
+    function paint() {
+      const stats = storage.getStats();
+      const kb = (stats.bytes / 1024).toFixed(1);
+
+      root.innerHTML = `
+        <header class="flex items-center gap-3 pt-4 pb-6">
+          <button id="btnBack" class="dd-btn-ghost px-3 py-2 text-sm" aria-label="뒤로">←</button>
+          <h1 class="text-xl sm:text-2xl font-black" style="color: var(--dd-text);">
+            ⚙️ 설정
+          </h1>
+        </header>
+
+        <!-- 📦 저장 현황 -->
+        <section class="dd-card p-4 mb-4">
+          <h2 class="text-sm font-bold mb-2" style="color: var(--dd-text);">📦 저장 현황</h2>
+          <div class="text-xs leading-6" style="color: var(--dd-text-sub);">
+            · 만든 토너먼트: <b style="color: var(--dd-text);">${stats.tournamentCount}개</b><br/>
+            · 투표 완료: <b style="color: var(--dd-text);">${stats.completedCount}개</b><br/>
+            · 사용 용량: <b style="color: var(--dd-text);">${kb} KB</b>
+          </div>
+        </section>
+
+        <!-- 💾 백업 & 복구 -->
+        <section class="dd-card p-4 mb-4">
+          <h2 class="text-sm font-bold mb-3" style="color: var(--dd-text);">💾 백업 & 복구</h2>
+          <p class="text-xs mb-3" style="color: var(--dd-text-sub);">
+            데이터는 이 브라우저에만 저장돼요. 다른 기기로 옮기거나 초기화 전에 백업하세요.
+          </p>
+          <div class="flex flex-col gap-2">
+            <button id="btnExport" class="dd-btn-primary py-3 text-sm">📥 백업 다운로드 (.json)</button>
+            <label class="dd-btn-secondary py-3 text-sm cursor-pointer text-center" for="fileImport">
+              📤 백업 불러오기
+            </label>
+            <input id="fileImport" type="file" accept="application/json,.json" class="hidden" />
+          </div>
+        </section>
+
+        <!-- ⚠️ 위험한 작업 -->
+        <section class="dd-card p-4 mb-4" style="border-color: #FFD0C7;">
+          <h2 class="text-sm font-bold mb-2" style="color: var(--dd-coral-deep);">⚠️ 위험한 작업</h2>
+          <p class="text-xs mb-3" style="color: var(--dd-text-sub);">
+            되돌릴 수 없어요. 실행 전 백업을 권장합니다.
+          </p>
+          <button id="btnReset" class="w-full py-3 text-sm font-bold rounded-2xl"
+            style="background: #FFE5DC; color: var(--dd-coral-deep); border: 1px solid #FFD0C7;">
+            🔥 모든 데이터 초기화
+          </button>
+        </section>
+
+        <p id="settingsMsg" class="text-center text-xs min-h-[16px] mb-2" style="color: var(--dd-coral-deep);"></p>
+
+        <div class="text-center text-xs" style="color: var(--dd-text-sub);">
+          뚝딱밸런스 · L1
+        </div>
+      `;
+
+      const msgEl = root.querySelector('#settingsMsg');
+      const flash = (text, ms = 2500) => {
+        msgEl.textContent = text;
+        setTimeout(() => { msgEl.textContent = ''; }, ms);
+      };
+
+      root.querySelector('#btnBack').addEventListener('click', () => navigate('/'));
+
+      // 📥 백업 다운로드
+      root.querySelector('#btnExport').addEventListener('click', () => {
+        const json = storage.exportBackup();
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const ts = new Date().toISOString().slice(0, 10);
+        a.href = url;
+        a.download = `ddalkak-balance-backup-${ts}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        flash('✅ 백업 파일을 저장했어요');
+      });
+
+      // 📤 백업 불러오기
+      root.querySelector('#fileImport').addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (!confirm('현재 데이터를 백업 파일로 덮어쓸까요?')) {
+          e.target.value = '';
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          const ok = storage.importBackup(String(reader.result || ''));
+          if (ok) {
+            flash('✅ 백업을 불러왔어요');
+            paint();
+          } else {
+            flash('❌ 백업 파일을 읽지 못했어요');
+          }
+        };
+        reader.onerror = () => flash('❌ 파일 읽기 실패');
+        reader.readAsText(file);
+        e.target.value = '';
+      });
+
+      // 🔥 초기화 (2중 확인)
+      root.querySelector('#btnReset').addEventListener('click', () => {
+        if (!confirm('정말 모든 데이터를 초기화할까요? 되돌릴 수 없어요.')) return;
+        if (!confirm('마지막 확인! 백업은 해두셨나요? 계속하시려면 확인을 눌러주세요.')) return;
+        storage.resetAll();
+        flash('🧹 초기화 완료');
+        paint();
+      });
+    }
+
+    paint();
   }
 
   /* ===========================================================
