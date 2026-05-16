@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<meta name="theme-color" content="#FF9A8B" />
+<meta name="theme-color" content="#7A9B6E" />
 <title>🏆 뚝딱밸런스 — 우리 반이 뽑는 최고의 선택</title>
 
 <!-- Pretendard 폰트 CDN -->
@@ -16,19 +16,32 @@
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <style>
-  /* 뚝딱 파스텔 디자인 토큰 */
+  /* 뚝딱 세이지 그린 뉴모피즘 토큰 */
   :root {
-    --dd-bg: #FFF8F0;          /* 크림 배경 */
-    --dd-coral: #FF9A8B;       /* 주요 강조 (코랄) */
-    --dd-coral-deep: #FF6B6B;  /* hover 코랄 딥 */
-    --dd-mint: #A8E6CF;        /* 보조 강조 (민트) */
-    --dd-text: #2D3748;        /* 기본 텍스트 */
-    --dd-text-sub: #64748B;    /* 보조 텍스트 */
-    --dd-border: #FFE5DC;      /* 테두리 */
+    --dd-bg: #E4E9DC;           /* 세이지 크림 배경 (서피스와 동일 — 뉴모피즘) */
+    --dd-surface: #E4E9DC;      /* 카드/버튼 표면 */
+    --dd-coral: #7A9B6E;        /* 주요 강조 (세이지 그린) */
+    --dd-coral-deep: #5C7A52;   /* hover 세이지 딥 */
+    --dd-mint: #B8C9A8;         /* 보조 강조 (라이트 세이지) */
+    --dd-text: #3D4A36;         /* 본문 (딥 포레스트) */
+    --dd-text-sub: #6E7A65;     /* 보조 텍스트 */
+    --dd-border: rgba(60, 74, 54, 0.08); /* 거의 안 보이는 미세 보더 */
     --dd-white: #FFFFFF;
-    --dd-radius: 20px;
-    --dd-shadow: 0 4px 16px rgba(255, 154, 139, 0.12);
-    --dd-shadow-lg: 0 8px 24px rgba(255, 107, 107, 0.2);
+
+    /* 뉴모피즘 음영 (배경 #E4E9DC 기준) */
+    --dd-sh-dark: #BFC4B7;      /* 어두운 그림자 */
+    --dd-sh-light: #FAFFF2;     /* 밝은 하이라이트 */
+
+    --dd-radius: 22px;
+    /* 카드/표면: 부드럽게 솟아오른 느낌 */
+    --dd-shadow: 8px 8px 18px var(--dd-sh-dark), -8px -8px 18px var(--dd-sh-light);
+    /* 강조: 더 깊게 솟음 */
+    --dd-shadow-lg: 12px 12px 28px var(--dd-sh-dark), -12px -12px 28px var(--dd-sh-light);
+    /* 작은 표면: 가벼운 솟음 */
+    --dd-shadow-sm: 4px 4px 10px var(--dd-sh-dark), -4px -4px 10px var(--dd-sh-light);
+    /* 눌림(inset) */
+    --dd-shadow-in: inset 5px 5px 10px var(--dd-sh-dark), inset -5px -5px 10px var(--dd-sh-light);
+    --dd-shadow-in-sm: inset 3px 3px 6px var(--dd-sh-dark), inset -3px -3px 6px var(--dd-sh-light);
   }
 
   * { -webkit-tap-highlight-color: transparent; }
@@ -41,48 +54,75 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* 기본 카드 */
+  /* 기본 카드 — 솟아오른 표면 */
   .dd-card {
-    background: var(--dd-white);
-    border: 1px solid var(--dd-border);
+    background: var(--dd-surface);
+    border: none;
     border-radius: var(--dd-radius);
     box-shadow: var(--dd-shadow);
+    transition: box-shadow 0.25s ease, transform 0.25s ease;
   }
+  .dd-card:hover { box-shadow: var(--dd-shadow-lg); transform: translateY(-2px); }
 
-  /* 주요 버튼 (코랄) */
+  /* 주요 버튼 (세이지 그린 솔리드) */
   .dd-btn-primary {
-    background: var(--dd-coral);
-    color: var(--dd-white);
+    background: linear-gradient(145deg, #85a878 0%, #6f8f63 100%);
+    color: #FFFFFF;
+    border: none;
     border-radius: var(--dd-radius);
     font-weight: 700;
-    transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 6px 6px 14px var(--dd-sh-dark), -6px -6px 14px var(--dd-sh-light);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
     will-change: transform;
   }
-  .dd-btn-primary:hover { background: var(--dd-coral-deep); box-shadow: var(--dd-shadow-lg); }
-  .dd-btn-primary:active { transform: scale(0.97); }
+  .dd-btn-primary:hover {
+    filter: brightness(1.06);
+    box-shadow: 10px 10px 22px var(--dd-sh-dark), -10px -10px 22px var(--dd-sh-light);
+    transform: translateY(-2px);
+  }
+  .dd-btn-primary:active {
+    transform: translateY(0) scale(0.98);
+    box-shadow: var(--dd-shadow-in-sm);
+    filter: brightness(0.96);
+  }
 
-  /* 보조 버튼 (민트) */
+  /* 보조 버튼 (라이트 세이지 표면) */
   .dd-btn-secondary {
-    background: var(--dd-mint);
-    color: var(--dd-text);
+    background: var(--dd-surface);
+    color: var(--dd-coral-deep);
+    border: none;
     border-radius: var(--dd-radius);
-    font-weight: 600;
-    transition: transform 0.15s ease, opacity 0.15s ease;
+    font-weight: 700;
+    box-shadow: var(--dd-shadow-sm);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, color 0.18s ease;
   }
-  .dd-btn-secondary:hover { opacity: 0.85; }
-  .dd-btn-secondary:active { transform: scale(0.97); }
+  .dd-btn-secondary:hover {
+    color: var(--dd-coral);
+    box-shadow: var(--dd-shadow);
+    transform: translateY(-2px);
+  }
+  .dd-btn-secondary:active {
+    transform: translateY(0) scale(0.98);
+    box-shadow: var(--dd-shadow-in-sm);
+  }
 
-  /* 고스트 버튼 */
+  /* 고스트 버튼 — 평평하지만 hover 시 살짝 솟음 */
   .dd-btn-ghost {
-    background: transparent;
+    background: var(--dd-surface);
     color: var(--dd-text-sub);
-    border: 1px solid var(--dd-border);
-    border-radius: 12px;
-    transition: background-color 0.15s ease;
+    border: none;
+    border-radius: 14px;
+    box-shadow: var(--dd-shadow-in-sm);
+    transition: box-shadow 0.18s ease, color 0.18s ease, transform 0.18s ease;
   }
-  .dd-btn-ghost:hover { background: var(--dd-border); }
+  .dd-btn-ghost:hover {
+    color: var(--dd-coral-deep);
+    box-shadow: var(--dd-shadow-sm);
+    transform: translateY(-1px);
+  }
+  .dd-btn-ghost:active { box-shadow: var(--dd-shadow-in-sm); transform: scale(0.97); }
 
-  /* 로고 뱃지 */
+  /* 로고 뱃지 — 세이지 그라데이션 텍스트 */
   .dd-logo-badge {
     background: linear-gradient(135deg, var(--dd-coral) 0%, var(--dd-coral-deep) 100%);
     -webkit-background-clip: text;
@@ -99,36 +139,41 @@
     to { opacity: 1; transform: translateY(0); }
   }
 
-  /* 빈 상태 일러스트 박스 */
+  /* 빈 상태 일러스트 박스 — inset 표면 */
   .dd-empty {
-    border: 2px dashed var(--dd-border);
+    background: var(--dd-surface);
+    border: none;
     border-radius: var(--dd-radius);
     color: var(--dd-text-sub);
+    box-shadow: var(--dd-shadow-in);
   }
 
   /* 푸터 링크 hover */
   footer a:hover { color: var(--dd-coral-deep) !important; }
 
-  /* 투표 카드 */
+  /* 투표 카드 — 솟아오른 표면, hover 시 더 솟고 선택 시 inset */
   .dd-vs-card {
-    background: var(--dd-white);
-    border: 2px solid var(--dd-border);
+    background: var(--dd-surface);
+    border: none;
     border-radius: var(--dd-radius);
     padding: 28px 16px;
     text-align: center;
     cursor: pointer;
-    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, opacity 0.25s ease;
+    box-shadow: var(--dd-shadow);
+    transition: transform 0.22s ease, box-shadow 0.22s ease, opacity 0.28s ease;
     will-change: transform, opacity;
     width: 100%;
   }
-  .dd-vs-card:hover { border-color: var(--dd-coral); box-shadow: var(--dd-shadow); }
-  .dd-vs-card:active { transform: scale(0.97); }
-  .dd-vs-card.is-picked {
-    border-color: var(--dd-coral-deep);
-    box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.15), var(--dd-shadow-lg);
-    transform: scale(1.03);
+  .dd-vs-card:hover {
+    box-shadow: var(--dd-shadow-lg);
+    transform: translateY(-4px) scale(1.01);
   }
-  .dd-vs-card.is-lost { opacity: 0.25; transform: scale(0.95); }
+  .dd-vs-card:active { transform: translateY(0) scale(0.97); box-shadow: var(--dd-shadow-in-sm); }
+  .dd-vs-card.is-picked {
+    box-shadow: var(--dd-shadow-in), 0 0 0 3px rgba(122, 155, 110, 0.35);
+    transform: scale(1.02);
+  }
+  .dd-vs-card.is-lost { opacity: 0.25; transform: scale(0.95); box-shadow: var(--dd-shadow-sm); }
 
   .dd-vs-emoji { font-size: 64px; line-height: 1.1; }
   @media (min-width: 480px) { .dd-vs-emoji { font-size: 80px; } }
@@ -141,29 +186,33 @@
     word-break: keep-all;
   }
 
-  /* VS 뱃지 */
+  /* VS 뱃지 — 솟아오른 작은 알약 */
   .dd-vs-badge {
     font-weight: 900;
     font-size: 14px;
     color: var(--dd-coral-deep);
-    background: var(--dd-white);
-    border: 2px solid var(--dd-coral);
-    padding: 6px 14px;
+    background: var(--dd-surface);
+    border: none;
+    padding: 8px 16px;
     border-radius: 999px;
     letter-spacing: 1px;
+    box-shadow: var(--dd-shadow-sm);
   }
 
-  /* 진행 바 */
+  /* 진행 바 — 트랙은 inset, 채움은 그라데이션 */
   .dd-progress-track {
-    background: var(--dd-border);
+    background: var(--dd-surface);
     border-radius: 999px;
-    height: 6px;
+    height: 10px;
     overflow: hidden;
+    box-shadow: var(--dd-shadow-in-sm);
   }
   .dd-progress-fill {
     background: linear-gradient(90deg, var(--dd-coral) 0%, var(--dd-coral-deep) 100%);
     height: 100%;
-    transition: width 0.3s ease;
+    border-radius: 999px;
+    box-shadow: 0 0 8px rgba(122, 155, 110, 0.4);
+    transition: width 0.4s ease;
   }
 
   /* 라운드 전환 애니메이션 */
@@ -173,12 +222,12 @@
     to   { opacity: 1; transform: translateY(0) scale(1); }
   }
 
-  /* 챔피언 카드 */
+  /* 챔피언 카드 — 세이지 라이트 그라데이션 + 깊은 솟음 */
   .dd-champion-card {
     position: relative;
-    background: linear-gradient(135deg, #FFF0D6 0%, #FFE5DC 50%, #FFD6C7 100%);
-    border: 2px solid var(--dd-coral);
-    border-radius: 28px;
+    background: linear-gradient(135deg, #EEF3E5 0%, #DCE5D0 50%, #C9D6B8 100%);
+    border: none;
+    border-radius: 30px;
     padding: 32px 20px;
     text-align: center;
     box-shadow: var(--dd-shadow-lg);
@@ -187,7 +236,7 @@
   .dd-champion-card::before {
     content: '';
     position: absolute; inset: 0;
-    background: radial-gradient(circle at 50% 0%, rgba(255,255,255,0.7) 0%, transparent 60%);
+    background: radial-gradient(circle at 50% 0%, rgba(255,255,255,0.65) 0%, transparent 60%);
     pointer-events: none;
   }
   .dd-champion-emoji {
@@ -212,14 +261,17 @@
     margin-bottom: 6px;
   }
 
-  /* 대진표 라운드 */
+  /* 대진표 라운드 — 솟아오른 표면 */
   .dd-round-card {
-    background: var(--dd-white);
-    border: 1px solid var(--dd-border);
+    background: var(--dd-surface);
+    border: none;
     border-radius: var(--dd-radius);
     padding: 14px 14px 10px;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
+    box-shadow: var(--dd-shadow-sm);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
   }
+  .dd-round-card:hover { box-shadow: var(--dd-shadow); transform: translateY(-2px); }
   .dd-round-head {
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 10px;
@@ -232,9 +284,10 @@
 
   .dd-match-row {
     display: flex; align-items: center; gap: 8px;
-    padding: 8px 10px; margin-bottom: 6px;
-    background: var(--dd-bg);
-    border-radius: 12px;
+    padding: 10px 12px; margin-bottom: 8px;
+    background: var(--dd-surface);
+    border-radius: 14px;
+    box-shadow: var(--dd-shadow-in-sm);
   }
   .dd-match-side {
     flex: 1; display: flex; align-items: center; gap: 8px;
@@ -260,14 +313,15 @@
   }
   .dd-modal-backdrop {
     position: absolute; inset: 0;
-    background: rgba(45, 55, 72, 0.55);
+    background: rgba(45, 55, 50, 0.45);
+    backdrop-filter: blur(2px);
     animation: ddFadeIn 0.2s ease-out;
   }
   .dd-modal-body {
     position: relative;
-    background: var(--dd-white);
-    border-radius: 24px;
-    padding: 24px 20px;
+    background: var(--dd-surface);
+    border-radius: 26px;
+    padding: 26px 22px;
     max-width: 340px; width: 100%;
     text-align: center;
     box-shadow: var(--dd-shadow-lg);
@@ -277,13 +331,14 @@
     from { opacity: 0; transform: scale(0.88); }
     to   { opacity: 1; transform: scale(1); }
   }
-  .dd-modal-body canvas { margin: 12px auto; display: block; border-radius: 12px; }
+  .dd-modal-body canvas { margin: 12px auto; display: block; border-radius: 14px; }
   .dd-qr-url {
     font-size: 11px; color: var(--dd-text-sub);
     word-break: break-all;
-    background: var(--dd-bg); padding: 8px 10px;
-    border-radius: 10px; margin: 10px 0 14px;
+    background: var(--dd-surface); padding: 10px 12px;
+    border-radius: 12px; margin: 10px 0 14px;
     text-align: left;
+    box-shadow: var(--dd-shadow-in-sm);
   }
 
   /* 우승 경로 리스트 */
@@ -296,9 +351,10 @@
     width: 48px; text-align: center;
     font-size: 11px; font-weight: 800;
     color: var(--dd-coral-deep);
-    background: var(--dd-bg);
-    border-radius: 8px; padding: 4px 0;
+    background: var(--dd-surface);
+    border-radius: 10px; padding: 5px 0;
     flex-shrink: 0;
+    box-shadow: var(--dd-shadow-sm);
   }
   .dd-path-vs { color: var(--dd-text-sub); font-size: 12px; }
 </style>
@@ -726,9 +782,9 @@
       // 탭 스타일 갱신
       root.querySelectorAll('[data-tab]').forEach((btn) => {
         const active = btn.dataset.tab === currentTab;
-        btn.style.background = active ? 'var(--dd-white)' : 'transparent';
+        btn.style.background = 'var(--dd-surface)';
         btn.style.color = active ? 'var(--dd-coral-deep)' : 'var(--dd-text-sub)';
-        btn.style.boxShadow = active ? 'var(--dd-shadow)' : 'none';
+        btn.style.boxShadow = active ? 'var(--dd-shadow-sm)' : 'var(--dd-shadow-in-sm)';
       });
 
       const content = root.querySelector('#tabContent');
@@ -792,7 +848,7 @@
             maxlength="40"
             placeholder="예) 우리 반 최고의 체험학습"
             class="w-full px-3 py-3 rounded-xl outline-none"
-            style="background: var(--dd-bg); border: 1px solid var(--dd-border); color: var(--dd-text);"
+            style="background: var(--dd-surface); border: none; box-shadow: var(--dd-shadow-in-sm); color: var(--dd-text);"
           />
 
           <label class="block text-sm font-semibold mt-4 mb-2" style="color: var(--dd-text);">
@@ -824,9 +880,10 @@
       container.querySelectorAll('[data-size]').forEach((btn) => {
         const size = Number(btn.dataset.size);
         const active = customState.size === size;
-        btn.style.background = active ? 'var(--dd-coral)' : 'var(--dd-bg)';
-        btn.style.color = active ? 'var(--dd-white)' : 'var(--dd-text-sub)';
-        btn.style.border = active ? 'none' : '1px solid var(--dd-border)';
+        btn.style.background = active ? 'linear-gradient(145deg, #85a878 0%, #6f8f63 100%)' : 'var(--dd-surface)';
+        btn.style.color = active ? '#FFFFFF' : 'var(--dd-text-sub)';
+        btn.style.border = 'none';
+        btn.style.boxShadow = active ? 'var(--dd-shadow-sm)' : 'var(--dd-shadow-in-sm)';
         btn.addEventListener('click', () => {
           if (customState.size === size) return;
           customState.size = size;
@@ -852,7 +909,7 @@
             placeholder="🎯"
             value="${escapeHtml(it.emoji)}"
             class="w-14 px-2 py-2 rounded-xl text-center outline-none"
-            style="background: var(--dd-white); border: 1px solid var(--dd-border);"
+            style="background: var(--dd-surface); border: none; box-shadow: var(--dd-shadow-in-sm); color: var(--dd-text);"
           />
           <input
             type="text"
@@ -862,7 +919,7 @@
             placeholder="후보 이름"
             value="${escapeHtml(it.text)}"
             class="flex-1 px-3 py-2 rounded-xl outline-none"
-            style="background: var(--dd-white); border: 1px solid var(--dd-border);"
+            style="background: var(--dd-surface); border: none; box-shadow: var(--dd-shadow-in-sm); color: var(--dd-text);"
           />
         </div>
       `).join('');
@@ -1269,7 +1326,7 @@
     document.body.appendChild(card);
     try {
       const canvas = await html2canvas(card, {
-        backgroundColor: '#FFF8F0',
+        backgroundColor: '#E4E9DC',
         scale: 2,
         useCORS: true,
         logging: false,
@@ -1303,49 +1360,51 @@
     card.style.cssText = [
       'position: fixed', 'left: -9999px', 'top: 0',
       'width: 540px', 'padding: 36px',
-      'background: linear-gradient(135deg, #FFF8F0 0%, #FFE5DC 100%)',
+      'background: linear-gradient(135deg, #E4E9DC 0%, #D2DCC4 100%)',
       "font-family: 'Pretendard Variable', Pretendard, -apple-system, system-ui, sans-serif",
-      'color: #2D3748', 'box-sizing: border-box',
+      'color: #3D4A36', 'box-sizing: border-box',
     ].join(';');
     card.innerHTML = `
       <div style="text-align:center; margin-bottom:20px;">
-        <div style="font-size:13px; font-weight:900; color:#FF6B6B; letter-spacing:3px;">🏆 뚝딱밸런스</div>
-        <div style="font-size:22px; font-weight:900; margin-top:6px; color:#2D3748;">
+        <div style="font-size:13px; font-weight:900; color:#5C7A52; letter-spacing:3px;">🏆 뚝딱밸런스</div>
+        <div style="font-size:22px; font-weight:900; margin-top:6px; color:#3D4A36;">
           ${escapeHtml(tournament.title)}
         </div>
       </div>
 
-      <div style="background: linear-gradient(135deg, #FFF0D6 0%, #FFE5DC 50%, #FFD6C7 100%);
-        border:3px solid #FF9A8B; border-radius:28px; padding:36px 20px; text-align:center;
-        box-shadow: 0 8px 24px rgba(255,107,107,0.15);">
-        <div style="display:inline-block; background:#FF6B6B; color:#FFFFFF; padding:4px 16px;
+      <div style="background: linear-gradient(135deg, #EEF3E5 0%, #DCE5D0 50%, #C9D6B8 100%);
+        border-radius:28px; padding:36px 20px; text-align:center;
+        box-shadow: 10px 10px 22px #BFC4B7, -10px -10px 22px #FAFFF2;">
+        <div style="display:inline-block; background:#5C7A52; color:#FFFFFF; padding:4px 16px;
           border-radius:999px; font-size:12px; font-weight:900; letter-spacing:2px;">CHAMPION</div>
         <div style="font-size:108px; line-height:1; margin:14px 0 6px;">${champ.emoji || '🏆'}</div>
-        <div style="font-size:30px; font-weight:900; color:#2D3748;">${escapeHtml(champ.text)}</div>
-        <div style="font-size:11px; color:#64748B; margin-top:8px;">
+        <div style="font-size:30px; font-weight:900; color:#3D4A36;">${escapeHtml(champ.text)}</div>
+        <div style="font-size:11px; color:#6E7A65; margin-top:8px;">
           ${formatDate(votes.completedAt)}
         </div>
       </div>
 
-      <div style="margin-top:18px; background:#FFFFFF; border:1px solid #FFE5DC;
-        border-radius:20px; padding:18px 20px;">
-        <div style="font-size:14px; font-weight:800; margin-bottom:10px; color:#2D3748;">
+      <div style="margin-top:22px; background:#E4E9DC;
+        border-radius:20px; padding:18px 20px;
+        box-shadow: 6px 6px 14px #BFC4B7, -6px -6px 14px #FAFFF2;">
+        <div style="font-size:14px; font-weight:800; margin-bottom:10px; color:#3D4A36;">
           🛤️ 우승까지의 여정
         </div>
         ${path.map((p, i) => `
-          <div style="display:flex; align-items:center; gap:10px; padding:8px 0; ${i > 0 ? 'border-top:1px dashed #FFE5DC;' : ''}">
-            <div style="background:#FFF8F0; color:#FF6B6B; font-weight:800; font-size:11px;
-              padding:4px 10px; border-radius:8px; flex-shrink:0;">${roundLabel(p.size)}</div>
+          <div style="display:flex; align-items:center; gap:10px; padding:8px 0; ${i > 0 ? 'border-top:1px dashed rgba(60,74,54,0.12);' : ''}">
+            <div style="background:#E4E9DC; color:#5C7A52; font-weight:800; font-size:11px;
+              padding:5px 10px; border-radius:10px; flex-shrink:0;
+              box-shadow: 3px 3px 6px #BFC4B7, -3px -3px 6px #FAFFF2;">${roundLabel(p.size)}</div>
             <div style="font-size:14px; flex:1;">
-              <b style="color:#FF6B6B;">${escapeHtml(champ.text)}</b>
-              <span style="color:#64748B; font-size:12px;"> vs </span>
-              <span style="color:#64748B; text-decoration:line-through;">${escapeHtml(p.opponent.text)}</span>
+              <b style="color:#5C7A52;">${escapeHtml(champ.text)}</b>
+              <span style="color:#6E7A65; font-size:12px;"> vs </span>
+              <span style="color:#6E7A65; text-decoration:line-through;">${escapeHtml(p.opponent.text)}</span>
             </div>
           </div>
         `).join('')}
       </div>
 
-      <div style="text-align:center; margin-top:18px; font-size:11px; color:#64748B;">
+      <div style="text-align:center; margin-top:18px; font-size:11px; color:#6E7A65;">
         © 2026 무궁무진클래스 · 용쌤 · mumuclass.kr
       </div>
     `;
@@ -1374,7 +1433,7 @@
         </div>
         <div id="homeQrWrap"
           class="mx-auto my-4 flex items-center justify-center"
-          style="width:${size}px; height:${size}px; background: var(--dd-white); border-radius: 16px; border: 1px solid var(--dd-border);">
+          style="width:${size}px; height:${size}px; background: #FFFFFF; border-radius: 18px; box-shadow: var(--dd-shadow);">
           <span class="text-xs" style="color: var(--dd-text-sub);">QR 불러오는 중…</span>
         </div>
         <div class="text-xs mb-3" style="color: var(--dd-text-sub); word-break: break-all;">
@@ -1427,7 +1486,7 @@
         </p>
         <div id="qrModalWrap"
           class="mx-auto flex items-center justify-center"
-          style="width:${size}px; height:${size}px; margin:12px auto; background: var(--dd-white); border-radius:12px; border:1px solid var(--dd-border);">
+          style="width:${size}px; height:${size}px; margin:12px auto; background: #FFFFFF; border-radius:14px; box-shadow: var(--dd-shadow);">
           <span class="text-xs" style="color: var(--dd-text-sub);">QR 불러오는 중…</span>
         </div>
         <div class="dd-qr-url">${escapeHtml(url)}</div>
@@ -1557,13 +1616,12 @@
         </section>
 
         <!-- ⚠️ 위험한 작업 -->
-        <section class="dd-card p-4 mb-4" style="border-color: #FFD0C7;">
+        <section class="dd-card p-4 mb-4">
           <h2 class="text-sm font-bold mb-2" style="color: var(--dd-coral-deep);">⚠️ 위험한 작업</h2>
           <p class="text-xs mb-3" style="color: var(--dd-text-sub);">
             되돌릴 수 없어요. 실행 전 백업을 권장합니다.
           </p>
-          <button id="btnReset" class="w-full py-3 text-sm font-bold rounded-2xl"
-            style="background: #FFE5DC; color: var(--dd-coral-deep); border: 1px solid #FFD0C7;">
+          <button id="btnReset" class="dd-btn-secondary w-full py-3 text-sm font-bold">
             🔥 모든 데이터 초기화
           </button>
         </section>
